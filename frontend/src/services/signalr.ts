@@ -1,10 +1,12 @@
 import * as signalR from '@microsoft/signalr';
-import { MarketAsset, OrderBook, Trade, ConnectionStatus } from '../types/market';
+import { MarketAsset, OrderBook, Trade, ConnectionStatus, PaperAccountSummary, PaperNotification } from '../types/market';
 
 type TickerCallback = (asset: MarketAsset) => void;
 type OrderBookCallback = (orderBook: OrderBook) => void;
 type TradeCallback = (trade: Trade) => void;
 type ConnectionStatusCallback = (status: ConnectionStatus) => void;
+type PaperAccountCallback = (summary: PaperAccountSummary) => void;
+type PaperNotificationCallback = (notification: PaperNotification) => void;
 
 class SignalRMarketClient {
   private connection: signalR.HubConnection | null = null;
@@ -13,6 +15,8 @@ class SignalRMarketClient {
   private orderBookListeners: Map<string, Set<OrderBookCallback>> = new Map();
   private tradeListeners: Map<string, Set<TradeCallback>> = new Map();
   private statusListeners: Set<ConnectionStatusCallback> = new Set();
+  private paperAccountListeners: Set<PaperAccountCallback> = new Set();
+  private paperNotificationListeners: Set<PaperNotificationCallback> = new Set();
   private isConnecting: boolean = false;
 
   public async connect(): Promise<void> {
@@ -73,6 +77,14 @@ class SignalRMarketClient {
         this.statusListeners.forEach(cb => cb(status));
       });
 
+      this.connection.on('PaperAccountUpdated', (summary: PaperAccountSummary) => {
+        this.paperAccountListeners.forEach(cb => cb(summary));
+      });
+
+      this.connection.on('PaperNotification', (notification: PaperNotification) => {
+        this.paperNotificationListeners.forEach(cb => cb(notification));
+      });
+
       this.connection.onreconnecting(() => {
         this.notifyStatus({
           provider: 'SignalR Hub',
@@ -127,6 +139,16 @@ class SignalRMarketClient {
   public onStatus(callback: ConnectionStatusCallback): () => void {
     this.statusListeners.add(callback);
     return () => this.statusListeners.delete(callback);
+  }
+
+  public onPaperAccount(callback: PaperAccountCallback): () => void {
+    this.paperAccountListeners.add(callback);
+    return () => this.paperAccountListeners.delete(callback);
+  }
+
+  public onPaperNotification(callback: PaperNotificationCallback): () => void {
+    this.paperNotificationListeners.add(callback);
+    return () => this.paperNotificationListeners.delete(callback);
   }
 
   public subscribeSymbol(symbol: string, onPrice: TickerCallback, onOrderBook?: OrderBookCallback, onTrade?: TradeCallback): () => void {

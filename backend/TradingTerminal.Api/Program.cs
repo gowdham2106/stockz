@@ -39,9 +39,11 @@ builder.Services.AddDbContext<TradingDbContext>(options =>
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IPriceNormalizer, MarketNormalizer>();
 builder.Services.AddSingleton<IAssetRepository, InMemoryAssetRepository>();
+builder.Services.AddSingleton<IPaperTradingService, PaperTradingService>();
 builder.Services.AddSingleton<IMarketDataProvider, BinanceMarketDataService>();
 builder.Services.AddSingleton<IMarketDataService, MarketDataService>();
 builder.Services.AddSingleton<IBinanceAccountService, BinanceAccountService>();
+builder.Services.AddSingleton<IBrokerGatewayService, BrokerGatewayService>();
 
 // Real-time background workers
 builder.Services.AddHostedService<BinanceWebSocketWorker>();

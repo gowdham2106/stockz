@@ -250,3 +250,128 @@ export interface BinanceAccountSummary {
   isRealLiveSync: boolean;
 }
 
+export interface BrokerConnectRequest {
+  brokerId: string;
+  apiKey: string;
+  secretKey: string;
+  requestToken?: string;
+  accountId?: string;
+  password?: string;
+  server?: string;
+  isTestnet?: boolean;
+}
+
+export interface BrokerHoldingItem {
+  symbol: string;
+  name: string;
+  assetType: string;
+  quantity: number;
+  avgPrice: number;
+  lastPrice: number;
+  marketValue: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+  currency: string;
+  exchange: string;
+}
+
+export interface UnifiedBrokerAccount {
+  brokerId: string;
+  name: string;
+  category: string;
+  accountId: string;
+  accountType: string;
+  status: string;
+  isRealLiveSync: boolean;
+  maskedApiKey: string;
+  currency: string;
+  totalBalance: number;
+  totalBalanceUsd: number;
+  availableCash: number;
+  marginUsed: number;
+  todayPnl: number;
+  todayPnlPercent: number;
+  holdings: BrokerHoldingItem[];
+  message: string;
+  officialLoginUrl: string;
+  apiDocsUrl: string;
+}
+
+export interface PaperTradeOrderRequest {
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  orderType: 'MARKET' | 'LIMIT' | 'STOP_LOSS';
+  quantity: number;
+  limitPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  leverage?: number;
+}
+
+export interface PaperPosition {
+  id: string;
+  symbol: string;
+  name: string;
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  entryPrice: number;
+  currentPrice: number;
+  marginUsed: number;
+  leverage: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  liquidationPrice?: number;
+  openedAt: string;
+}
+
+export interface PaperOrder {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  orderType: 'LIMIT' | 'MARKET' | 'STOP_LOSS';
+  quantity: number;
+  targetPrice: number;
+  status: 'OPEN' | 'FILLED' | 'CANCELLED';
+  placedAt: string;
+}
+
+export interface PaperClosedTrade {
+  id: string;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  quantity: number;
+  entryPrice: number;
+  exitPrice: number;
+  realizedPnl: number;
+  realizedPnlPercent: number;
+  closeReason?: 'MANUAL' | 'STOP_LOSS' | 'TAKE_PROFIT' | 'LIQUIDATION' | string;
+  openedAt: string;
+  closedAt: string;
+}
+
+export interface PaperNotification {
+  type: 'STOP_LOSS' | 'TAKE_PROFIT' | 'LIQUIDATION' | 'ORDER_FILLED' | 'INFO' | string;
+  title: string;
+  message: string;
+  symbol: string;
+  pnl?: number;
+  timestamp: string;
+}
+
+export interface PaperAccountSummary {
+  virtualCash: number;
+  totalPortfolioValue: number;
+  marginUsed: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  totalTrades: number;
+  winningTrades: number;
+  winRate: number;
+  positions: PaperPosition[];
+  openOrders: PaperOrder[];
+  tradeHistory: PaperClosedTrade[];
+}
+
+

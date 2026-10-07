@@ -40,3 +40,4 @@ C:\Users\GowdhamGokul\Downloads\project\backend\TradingTerminal.Api\obj\Debug\ne
 C:\Users\GowdhamGokul\Downloads\project\backend\TradingTerminal.Api\obj\Debug\net8.0\TradingTerminal.Api.pdb
 C:\Users\GowdhamGokul\Downloads\project\backend\TradingTerminal.Api\obj\Debug\net8.0\TradingTerminal.Api.genruntimeconfig.cache
 C:\Users\GowdhamGokul\Downloads\project\backend\TradingTerminal.Api\obj\Debug\net8.0\ref\TradingTerminal.Api.dll
+C:\Users\GowdhamGokul\Downloads\project\backend\TradingTerminal.Api\obj\Debug\net8.0\TradingTerminal.Api.sourcelink.json

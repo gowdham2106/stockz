@@ -32,13 +32,17 @@ namespace TradingTerminal.Api.Services
         private readonly ConcurrentDictionary<string, DateTime> _lastBroadcastTime = new(StringComparer.OrdinalIgnoreCase);
         private readonly TimeSpan _broadcastThrottle = TimeSpan.FromMilliseconds(15); // Ultra-responsive 15ms throttle
 
+        private readonly IPaperTradingService _paperTradingService;
+
         public MarketDataService(
             IAssetRepository assetRepository,
             IHubContext<MarketHub> hubContext,
+            IPaperTradingService paperTradingService,
             ILogger<MarketDataService> logger)
         {
             _assetRepository = assetRepository;
             _hubContext = hubContext;
+            _paperTradingService = paperTradingService;
             _logger = logger;
         }
 
@@ -378,6 +382,9 @@ namespace TradingTerminal.Api.Services
         public async Task ProcessAssetUpdateAsync(MarketAsset asset)
         {
             await _assetRepository.UpsertAssetAsync(asset);
+
+            // Immediately check paper trading Stop-Loss, Take-Profit, and Limit order triggers
+            _ = _paperTradingService.CheckTriggersAndFillsAsync(asset.Symbol, asset.Price, asset.High ?? asset.Price, asset.Low ?? asset.Price);
 
             var now = DateTime.UtcNow;
             if (_lastBroadcastTime.TryGetValue(asset.Symbol, out var lastTime) && (now - lastTime) < _broadcastThrottle)

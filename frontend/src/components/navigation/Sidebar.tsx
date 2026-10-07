@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Wallet,
   Building2,
-  Bot
+  Bot,
+  Zap
 } from 'lucide-react';
 import { useMarket, PageId } from '../../context/MarketContext';
 
@@ -53,12 +54,10 @@ export const Sidebar: React.FC = () => {
       ]
     },
     {
-      title: 'TRADING (SIMULATED)',
+      title: 'PRACTICE & SIMULATION',
       items: [
+        { id: 'portfolio', label: 'Paper Trading Hub', icon: Zap, page: 'portfolio' },
         { id: 'watchlist', label: 'Watchlist', icon: Bookmark, page: 'watchlist' },
-        { id: 'portfolio', label: 'Portfolio Simulation', icon: PieChart, page: 'portfolio' },
-        { id: 'orders', label: 'Live Orders', icon: ClipboardList, comingSoon: true },
-        { id: 'positions', label: 'Positions', icon: Crosshair, comingSoon: true },
       ]
     },
     {

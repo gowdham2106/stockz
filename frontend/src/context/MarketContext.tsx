@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { MarketAsset, MarketPulse, ConnectionStatus, AlertItem, BrokerAccount } from '../types/market';
+import { MarketAsset, MarketPulse, ConnectionStatus, AlertItem, BrokerAccount, PaperAccountSummary, PaperNotification } from '../types/market';
 import { api } from '../services/api';
 import { signalRClient } from '../services/signalr';
 import { BROKERS_DATA } from '../data/brokersData';
@@ -15,6 +15,8 @@ interface MarketContextType {
   activeBroker: string;
   brokersList: BrokerAccount[];
   activeBrokerAccount: BrokerAccount;
+  paperAccount: PaperAccountSummary | null;
+  paperNotification: PaperNotification | null;
   marketPulse: MarketPulse | null;
   connectionStatus: ConnectionStatus;
   watchlistSymbols: string[];
@@ -40,6 +42,8 @@ interface MarketContextType {
   addAlert: (alert: Partial<AlertItem>) => Promise<void>;
   deleteAlert: (id: string) => Promise<void>;
   refreshMarkets: () => Promise<void>;
+  refreshPaperAccount: () => Promise<void>;
+  dismissPaperNotification: () => void;
 }
 
 const defaultConnectionStatus: ConnectionStatus = {
@@ -60,6 +64,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activePage, setActivePage] = useState<PageId>('landing'); // Default start at broker selection landing page
   const [activeBroker, setActiveBroker] = useState<string>('binance');
   const [brokersList] = useState<BrokerAccount[]>(BROKERS_DATA);
+  const [paperAccount, setPaperAccount] = useState<PaperAccountSummary | null>(null);
+  const [paperNotification, setPaperNotification] = useState<PaperNotification | null>(null);
   const [marketPulse, setMarketPulse] = useState<MarketPulse | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(defaultConnectionStatus);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -80,7 +86,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const playChime = useCallback((type: 'up' | 'down') => {
+  const playChime = useCallback((type: 'up' | 'down' | 'alert') => {
     if (!isSoundEnabled) return;
     try {
       if (!audioContextRef.current) {
@@ -91,24 +97,34 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(type === 'up' ? 880 : 440, ctx.currentTime);
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      osc.type = type === 'alert' ? 'sawtooth' : 'sine';
+      osc.frequency.setValueAtTime(type === 'up' ? 880 : (type === 'down' ? 440 : 660), ctx.currentTime);
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (type === 'alert' ? 0.35 : 0.1));
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.1);
+      osc.stop(ctx.currentTime + (type === 'alert' ? 0.35 : 0.1));
     } catch {}
   }, [isSoundEnabled]);
+
+  const refreshPaperAccount = useCallback(async () => {
+    try {
+      const data = await api.getPaperAccount();
+      if (data) setPaperAccount(data);
+    } catch (err) {
+      console.warn('Paper account refresh error:', err);
+    }
+  }, []);
 
   const loadInitialData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [marketsData, pulseData, alertsData] = await Promise.allSettled([
+      const [marketsData, pulseData, alertsData, paperData] = await Promise.allSettled([
         api.getMarkets('all'),
         api.getMarketPulse(),
-        api.getAlerts()
+        api.getAlerts(),
+        api.getPaperAccount()
       ]);
 
       if (marketsData.status === 'fulfilled' && marketsData.value.length > 0) {
@@ -119,6 +135,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       if (alertsData.status === 'fulfilled') {
         setAlerts(alertsData.value);
+      }
+      if (paperData.status === 'fulfilled') {
+        setPaperAccount(paperData.value);
       }
     } catch (err) {
       console.warn('Initial data load error:', err);
@@ -137,7 +156,7 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch {}
   }, [watchlistSymbols]);
 
-  // Real-Time SignalR Subscription
+  // Real-Time SignalR Subscriptions
   useEffect(() => {
     signalRClient.connect();
 
@@ -188,9 +207,24 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setConnectionStatus(status);
     });
 
+    const unsubPaper = signalRClient.onPaperAccount((summary) => {
+      setPaperAccount(summary);
+    });
+
+    const unsubNotification = signalRClient.onPaperNotification((notif) => {
+      setPaperNotification(notif);
+      playChime('alert');
+      // Auto dismiss after 8 seconds
+      setTimeout(() => {
+        setPaperNotification(current => current?.timestamp === notif.timestamp ? null : current);
+      }, 8000);
+    });
+
     return () => {
       unsubTicker();
       unsubStatus();
+      unsubPaper();
+      unsubNotification();
     };
   }, [activeAssetSymbol, playChime]);
 
@@ -274,6 +308,10 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await loadInitialData();
   }, [loadInitialData]);
 
+  const dismissPaperNotification = useCallback(() => {
+    setPaperNotification(null);
+  }, []);
+
   return (
     <MarketContext.Provider
       value={{
@@ -285,6 +323,8 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         activeBroker,
         brokersList,
         activeBrokerAccount,
+        paperAccount,
+        paperNotification,
         marketPulse,
         connectionStatus,
         watchlistSymbols,
@@ -308,7 +348,9 @@ export const MarketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setDensity,
         addAlert,
         deleteAlert,
-        refreshMarkets
+        refreshMarkets,
+        refreshPaperAccount,
+        dismissPaperNotification
       }}
     >
       {children}

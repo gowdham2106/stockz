@@ -128,5 +128,77 @@ export const api = {
       throw new Error(data.message || 'Failed to connect Binance account');
     }
     return data;
+  },
+
+  async getBrokerAccount(brokerId: string) {
+    const res = await fetch(`${API_BASE}/brokers/${encodeURIComponent(brokerId)}`);
+    if (!res.ok) throw new Error(`Failed to fetch broker account: ${res.statusText}`);
+    return res.json();
+  },
+
+  async connectBroker(request: any) {
+    const res = await fetch(`${API_BASE}/brokers/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to connect broker');
+    }
+    return data;
+  },
+
+  async getPaperAccount() {
+    const res = await fetch(`${API_BASE}/papertrading/account`);
+    if (!res.ok) throw new Error(`Failed to fetch paper trading account: ${res.statusText}`);
+    return res.json();
+  },
+
+  async executePaperOrder(order: any) {
+    const res = await fetch(`${API_BASE}/papertrading/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to execute paper order');
+    return data;
+  },
+
+  async closePaperPosition(positionId: string) {
+    const res = await fetch(`${API_BASE}/papertrading/close/${encodeURIComponent(positionId)}`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to close position');
+    return data;
+  },
+
+  async cancelPaperOrder(orderId: string) {
+    const res = await fetch(`${API_BASE}/papertrading/cancel/${encodeURIComponent(orderId)}`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to cancel order');
+    return data;
+  },
+
+  async resetPaperAccount(initialCash: number = 100000) {
+    const res = await fetch(`${API_BASE}/papertrading/reset?initialCash=${initialCash}`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to reset paper account');
+    return data;
+  },
+
+  async depositPaperFunds(amount: number = 25000) {
+    const res = await fetch(`${API_BASE}/papertrading/deposit?amount=${amount}`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to deposit paper funds');
+    return data;
   }
 };

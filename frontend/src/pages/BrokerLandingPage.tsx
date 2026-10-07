@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ShieldCheck, 
   Zap, 
@@ -19,15 +19,21 @@ import {
 } from 'lucide-react';
 import { useMarket } from '../context/MarketContext';
 import { BROKERS_DATA } from '../data/brokersData';
-import { BrokerAccount } from '../types/market';
+import { BrokerAccount, UnifiedBrokerAccount } from '../types/market';
 import { Badge } from '../components/common/Badge';
 import { formatPrice } from '../utils/formatters';
+import { BrokerConnectModal } from '../components/broker/BrokerConnectModal';
 
 export const BrokerLandingPage: React.FC = () => {
   const { selectBrokerAndOpenWallet, setActivePage } = useMarket();
+  const [selectedModalBroker, setSelectedModalBroker] = useState<BrokerAccount | null>(null);
 
   const handleSelectBroker = (broker: BrokerAccount) => {
     selectBrokerAndOpenWallet(broker.id);
+  };
+
+  const handleConnectSuccess = (account: UnifiedBrokerAccount) => {
+    selectBrokerAndOpenWallet(account.brokerId);
   };
 
   const binanceBroker = (BROKERS_DATA || []).find(b => b.id === 'binance') || BROKERS_DATA[0];
@@ -44,7 +50,7 @@ export const BrokerLandingPage: React.FC = () => {
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-trade-primary/15 border border-trade-primary/30 text-trade-primary text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>TRADE.AI BROKER GATEWAY PORTAL</span>
+            <span>TRADE.AI MULTI-BROKER GATEWAY PORTAL</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-black tracking-tight text-white leading-tight">
@@ -52,7 +58,7 @@ export const BrokerLandingPage: React.FC = () => {
           </h1>
 
           <p className="text-xs sm:text-base text-trade-muted leading-relaxed max-w-2xl">
-            Select Binance or an institutional broker below to inspect your connected account wallet balances, live order books, and real-time WebSocket market streams.
+            Select <strong>Zerodha Kite</strong>, <strong>Binance</strong>, <strong>Coinbase</strong>, <strong>Interactive Brokers</strong>, or <strong>MetaTrader 5</strong> to connect your live API credentials and stream real-time account holdings.
           </p>
 
           {/* Key Security Pillars */}
@@ -63,11 +69,11 @@ export const BrokerLandingPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-trade-surface3/60 border border-trade-border text-xs">
               <Zap className="w-4 h-4 text-trade-primary shrink-0" />
-              <span className="text-trade-text font-medium">&lt;15ms Real-Time Feeds</span>
+              <span className="text-trade-text font-medium">Sub-15ms Real-Time Feeds</span>
             </div>
             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-trade-surface3/60 border border-trade-border text-xs">
               <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-trade-text font-medium">Direct Binance Sync</span>
+              <span className="text-trade-text font-medium">Multi-Broker API Sync</span>
             </div>
           </div>
         </div>
@@ -79,7 +85,7 @@ export const BrokerLandingPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Flame className="w-4 h-4 text-amber-400" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-trade-text">
-              Primary Exchange Gateway (Recommended)
+              Primary Crypto Exchange Gateway
             </h2>
           </div>
           <span className="text-xs text-emerald-400 font-num">● Active Live WebSocket Stream</span>
@@ -139,11 +145,19 @@ export const BrokerLandingPage: React.FC = () => {
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <button 
+                  onClick={() => setSelectedModalBroker(binanceBroker)}
+                  className="px-4 py-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/40 transition-all cursor-pointer"
+                >
+                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Connect API</span>
+                </button>
+
+                <button 
                   onClick={() => handleSelectBroker(binanceBroker)}
                   className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:scale-105 transition-all cursor-pointer"
                 >
                   <Wallet className="w-4 h-4" />
-                  <span>Open Binance Wallet</span>
+                  <span>Open Wallet</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
 
@@ -163,13 +177,13 @@ export const BrokerLandingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid of Other Supported Brokers */}
+      {/* Grid of Other Supported Brokers (Zerodha, Coinbase, IBKR, MT5, Robinhood) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-trade-primary" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-trade-text">
-              Multi-Asset & Institutional Brokers
+              Multi-Asset & Institutional Brokers (Zerodha, Coinbase, IBKR, MT5)
             </h2>
           </div>
           <span className="text-xs text-trade-subtle">
@@ -180,16 +194,19 @@ export const BrokerLandingPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {otherBrokers.map(broker => {
             const isPos = broker.todayPnl >= 0;
+            const isZerodha = broker.id === 'zerodha';
 
             return (
               <div
                 key={broker.id}
-                onClick={() => handleSelectBroker(broker)}
-                className="group relative bg-trade-surface border border-trade-border hover:border-trade-primary/60 rounded-3xl p-5 shadow-card hover:shadow-2xl transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-4"
+                className="group relative bg-trade-surface border border-trade-border hover:border-trade-primary/60 rounded-3xl p-5 shadow-card hover:shadow-2xl transition-all duration-200 flex flex-col justify-between space-y-4"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3">
+                    <div 
+                      onClick={() => handleSelectBroker(broker)}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
                       <div 
                         className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xl border border-trade-border shadow-inner shrink-0 group-hover:scale-105 transition-transform"
                         style={{ backgroundColor: `${broker.accentColor}18`, color: broker.accentColor }}
@@ -227,38 +244,65 @@ export const BrokerLandingPage: React.FC = () => {
                 </div>
 
                 {/* Account Details & Balances */}
-                <div className="pt-3 border-t border-trade-border/60 font-num space-y-2">
+                <div 
+                  onClick={() => handleSelectBroker(broker)}
+                  className="pt-3 border-t border-trade-border/60 font-num space-y-2 cursor-pointer"
+                >
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-trade-subtle font-sans">Account ID:</span>
                     <span className="font-mono text-trade-text">{broker.accountId}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-trade-subtle font-sans">Total Assets:</span>
+                    <span className="text-xs text-trade-subtle font-sans">
+                      {isZerodha ? 'Total INR Assets:' : 'Total Assets (USD):'}
+                    </span>
                     <span className="font-black text-base text-trade-text">
-                      ${formatPrice(broker.totalBalanceUsd)}
+                      {isZerodha ? `₹${formatPrice(1845600)}` : `$${formatPrice(broker.totalBalanceUsd)}`}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-trade-subtle font-sans">24h Gain:</span>
                     <span className={`font-bold flex items-center gap-1 ${isPos ? 'text-trade-positive' : 'text-trade-negative'}`}>
-                      {isPos ? '+' : ''}{broker.todayPnlPercent}% (${formatPrice(Math.abs(broker.todayPnl))})
+                      {isPos ? '+' : ''}{broker.todayPnlPercent}% ({isZerodha ? `+₹${formatPrice(28450)}` : `+$${formatPrice(Math.abs(broker.todayPnl))}`})
                     </span>
                   </div>
                 </div>
 
-                {/* Card Button */}
-                <button className="w-full py-2.5 rounded-xl bg-trade-surface2 group-hover:bg-trade-primary text-trade-text group-hover:text-white font-bold text-xs flex items-center justify-center gap-2 border border-trade-border group-hover:border-transparent transition-all">
-                  <Wallet className="w-3.5 h-3.5" />
-                  <span>View Connected Wallet</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </button>
+                {/* Card Action Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button 
+                    onClick={() => setSelectedModalBroker(broker)}
+                    className="py-2.5 rounded-xl bg-trade-surface2 hover:bg-trade-surface3 text-trade-primary font-bold text-xs flex items-center justify-center gap-1.5 border border-trade-border transition-all cursor-pointer"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>Connect API</span>
+                  </button>
+
+                  <button 
+                    onClick={() => handleSelectBroker(broker)}
+                    className="py-2.5 rounded-xl bg-trade-primary hover:bg-trade-primaryHover text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-glow-primary transition-all cursor-pointer"
+                  >
+                    <Wallet className="w-3.5 h-3.5" />
+                    <span>View Wallet</span>
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Universal Broker Connect Modal */}
+      {selectedModalBroker && (
+        <BrokerConnectModal
+          broker={selectedModalBroker}
+          isOpen={!!selectedModalBroker}
+          onClose={() => setSelectedModalBroker(null)}
+          onSuccess={handleConnectSuccess}
+        />
+      )}
     </div>
   );
 };
