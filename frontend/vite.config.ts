@@ -12,6 +12,22 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/ws': {
+        target: 'http://localhost:5000',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err: any) => {
+            if (err.code === 'ECONNRESET' || err.code === 'ECONNABORTED' || err.code === 'ECANCELED') return;
+          });
+          proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
+            socket.on('error', (err: any) => {
+              if (err.code === 'ECONNRESET' || err.code === 'ECONNABORTED' || err.code === 'ECANCELED') return;
+            });
+          });
+        }
+      },
       '/hubs': {
         target: 'http://localhost:5000',
         ws: true,

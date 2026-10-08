@@ -31,14 +31,11 @@ export const MarketsPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const categories = [
-    { id: 'all', label: 'All Markets' },
-    { id: 'crypto', label: 'Crypto' },
-    { id: 'stock', label: 'US Stocks' },
-    { id: 'indian_stock', label: 'Indian Stocks (NSE)' },
-    { id: 'index', label: 'Indices' },
-    { id: 'forex', label: 'Forex' },
-    { id: 'commodity', label: 'Commodities' },
-    { id: 'etf', label: 'ETFs' },
+    { id: 'all', label: 'All Live Crypto' },
+    { id: 'layer1', label: 'Layer 1' },
+    { id: 'defi', label: 'Smart Contracts & DeFi' },
+    { id: 'meme', label: 'Meme Coins' },
+    { id: 'payments', label: 'Payments & Infrastructure' },
   ];
 
   const handleSort = (field: 'price' | 'change' | 'volume' | 'marketCap' | 'name') => {
@@ -52,9 +49,14 @@ export const MarketsPage: React.FC = () => {
 
   const filteredAssets = assets
     .filter(asset => {
-      const matchCat = activeCategory === 'all' || 
-        asset.assetType === activeCategory || 
-        asset.assetTypeString === activeCategory;
+      let matchCat = activeCategory === 'all';
+      if (!matchCat) {
+        if (activeCategory === 'layer1') matchCat = asset.sector === 'Layer 1' || asset.sector === 'Layer 0';
+        else if (activeCategory === 'defi') matchCat = asset.sector === 'Smart Contracts' || asset.sector === 'Oracle & Infra' || asset.sector === 'Exchange Token';
+        else if (activeCategory === 'meme') matchCat = asset.sector === 'Meme';
+        else if (activeCategory === 'payments') matchCat = asset.sector === 'Payments';
+        else matchCat = asset.assetType === activeCategory || asset.sector?.toLowerCase() === activeCategory;
+      }
 
       const q = searchFilter.trim().toLowerCase();
       if (!q) return matchCat;

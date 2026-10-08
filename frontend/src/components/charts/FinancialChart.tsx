@@ -216,62 +216,70 @@ export const FinancialChart: React.FC<FinancialChartProps> = ({ asset }) => {
   useEffect(() => {
     if (!chartRef.current || candles.length === 0) return;
 
-    const formattedCandles: CandlestickData[] = candles.map(c => ({
-      time: c.time as UTCTimestamp,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
-
-    if (candleSeriesRef.current) {
-      candleSeriesRef.current.setData(formattedCandles);
-    } else if (lineSeriesRef.current) {
-      const lineData: LineData[] = candles.map(c => ({
-        time: c.time as UTCTimestamp,
-        value: c.close,
+    try {
+      const formattedCandles: CandlestickData[] = candles.map(c => ({
+        time: parseCandleTime(c),
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
       }));
-      lineSeriesRef.current.setData(lineData);
-    }
 
-    if (volumeSeriesRef.current && showVolume) {
-      const volData = candles.map(c => ({
-        time: c.time as UTCTimestamp,
-        value: c.volume,
-        color: c.close >= c.open ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)',
-      }));
-      volumeSeriesRef.current.setData(volData);
-    }
+      if (candleSeriesRef.current) {
+        candleSeriesRef.current.setData(formattedCandles);
+      } else if (lineSeriesRef.current) {
+        const lineData: LineData[] = candles.map(c => ({
+          time: parseCandleTime(c),
+          value: c.close,
+        }));
+        lineSeriesRef.current.setData(lineData);
+      }
 
-    // Calculate EMAs
-    if (ema20SeriesRef.current && showEma20) {
-      const ema20 = calculateEMA(candles, 20);
-      ema20SeriesRef.current.setData(ema20);
-    }
+      if (volumeSeriesRef.current && showVolume) {
+        const volData = candles.map(c => ({
+          time: parseCandleTime(c),
+          value: c.volume,
+          color: c.close >= c.open ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)',
+        }));
+        volumeSeriesRef.current.setData(volData);
+      }
 
-    if (ema50SeriesRef.current && showEma50) {
-      const ema50 = calculateEMA(candles, 50);
-      ema50SeriesRef.current.setData(ema50);
-    }
+      // Calculate EMAs
+      if (ema20SeriesRef.current && showEma20) {
+        const ema20 = calculateEMA(candles, 20);
+        ema20SeriesRef.current.setData(ema20);
+      }
 
-    chartRef.current.timeScale().fitContent();
+      if (ema50SeriesRef.current && showEma50) {
+        const ema50 = calculateEMA(candles, 50);
+        ema50SeriesRef.current.setData(ema50);
+      }
+
+      chartRef.current.timeScale().fitContent();
+    } catch (err) {
+      console.warn('Error setting chart data:', err);
+    }
   }, [candles, showVolume, showEma20, showEma50]);
 
   // Live real-time tick update to last candle
   useEffect(() => {
     if (candleSeriesRef.current && candles.length > 0 && asset.price > 0) {
-      const lastCandle = candles[candles.length - 1];
-      const updatedClose = asset.price;
-      const updatedHigh = Math.max(lastCandle.high, updatedClose);
-      const updatedLow = Math.min(lastCandle.low, updatedClose);
+      try {
+        const lastCandle = candles[candles.length - 1];
+        const updatedClose = asset.price;
+        const updatedHigh = Math.max(lastCandle.high, updatedClose);
+        const updatedLow = Math.min(lastCandle.low, updatedClose);
 
-      candleSeriesRef.current.update({
-        time: lastCandle.time as UTCTimestamp,
-        open: lastCandle.open,
-        high: updatedHigh,
-        low: updatedLow,
-        close: updatedClose,
-      });
+        candleSeriesRef.current.update({
+          time: parseCandleTime(lastCandle),
+          open: lastCandle.open,
+          high: updatedHigh,
+          low: updatedLow,
+          close: updatedClose,
+        });
+      } catch (err) {
+        console.warn('Error updating live candle tick:', err);
+      }
     }
   }, [asset.price, candles]);
 
@@ -431,8 +439,26 @@ export const FinancialChart: React.FC<FinancialChartProps> = ({ asset }) => {
   );
 };
 
+// Helper to parse candle time safely to UTCTimestamp
+function parseCandleTime(candle: CandleStick | any): UTCTimestamp {
+  if (!candle) return Math.floor(Date.now() / 1000) as UTCTimestamp;
+  if (typeof candle.time === 'number') {
+    return (candle.time > 1e11 ? Math.floor(candle.time / 1000) : Math.floor(candle.time)) as UTCTimestamp;
+  }
+  if (candle.timestamp) {
+    const parsed = Math.floor(new Date(candle.timestamp).getTime() / 1000);
+    return (isNaN(parsed) ? Math.floor(Date.now() / 1000) : parsed) as UTCTimestamp;
+  }
+  if (typeof candle.time === 'string') {
+    const parsed = Math.floor(new Date(candle.time).getTime() / 1000);
+    return (isNaN(parsed) ? Math.floor(Date.now() / 1000) : parsed) as UTCTimestamp;
+  }
+  return Math.floor(Date.now() / 1000) as UTCTimestamp;
+}
+
 // Helper to calculate Exponential Moving Average
 function calculateEMA(candles: CandleStick[], period: number): LineData[] {
+  if (candles.length === 0) return [];
   const k = 2 / (period + 1);
   const result: LineData[] = [];
   let ema = candles[0]?.close || 0;
@@ -447,7 +473,7 @@ function calculateEMA(candles: CandleStick[], period: number): LineData[] {
 
     if (i >= period - 1) {
       result.push({
-        time: c.time as UTCTimestamp,
+        time: parseCandleTime(c),
         value: Math.round(ema * 100) / 100,
       });
     }

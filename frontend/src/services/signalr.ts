@@ -1,4 +1,3 @@
-import * as signalR from '@microsoft/signalr';
 import { MarketAsset, OrderBook, Trade, ConnectionStatus, PaperAccountSummary, PaperNotification } from '../types/market';
 
 type TickerCallback = (asset: MarketAsset) => void;
@@ -8,8 +7,8 @@ type ConnectionStatusCallback = (status: ConnectionStatus) => void;
 type PaperAccountCallback = (summary: PaperAccountSummary) => void;
 type PaperNotificationCallback = (notification: PaperNotification) => void;
 
-class SignalRMarketClient {
-  private connection: signalR.HubConnection | null = null;
+class RealtimeMarketClient {
+  private ws: WebSocket | null = null;
   private tickerListeners: Set<TickerCallback> = new Set();
   private symbolPriceListeners: Map<string, Set<TickerCallback>> = new Map();
   private orderBookListeners: Map<string, Set<OrderBookCallback>> = new Map();
@@ -18,9 +17,11 @@ class SignalRMarketClient {
   private paperAccountListeners: Set<PaperAccountCallback> = new Set();
   private paperNotificationListeners: Set<PaperNotificationCallback> = new Set();
   private isConnecting: boolean = false;
+  private reconnectTimer: any = null;
+  private pingInterval: any = null;
 
-  public async connect(): Promise<void> {
-    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+  public connect(): void {
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
@@ -28,106 +29,102 @@ class SignalRMarketClient {
     this.isConnecting = true;
 
     try {
-      this.connection = new signalR.HubConnectionBuilder()
-        .withUrl('/hubs/market', {
-          skipNegotiation: false,
-          transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
-        })
-        .withAutomaticReconnect({
-          nextRetryDelayInMilliseconds: retryContext => {
-            if (retryContext.elapsedMilliseconds < 60000) {
-              return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 10000);
-            }
-            return 10000;
-          }
-        })
-        .configureLogging(signalR.LogLevel.Warning)
-        .build();
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws/market`;
 
-      this.connection.on('TickerUpdated', (asset: MarketAsset) => {
-        this.tickerListeners.forEach(cb => cb(asset));
-      });
+      this.ws = new WebSocket(wsUrl);
 
-      this.connection.on('PriceUpdated', (asset: MarketAsset) => {
-        const key = this.normalizeSymbol(asset.symbol);
-        const callbacks = this.symbolPriceListeners.get(key);
-        if (callbacks) {
-          callbacks.forEach(cb => cb(asset));
-        }
-        this.tickerListeners.forEach(cb => cb(asset));
-      });
-
-      this.connection.on('OrderBookUpdated', (orderBook: OrderBook) => {
-        const key = this.normalizeSymbol(orderBook.symbol);
-        const callbacks = this.orderBookListeners.get(key);
-        if (callbacks) {
-          callbacks.forEach(cb => cb(orderBook));
-        }
-      });
-
-      this.connection.on('TradeUpdated', (trade: Trade) => {
-        const key = this.normalizeSymbol(trade.symbol);
-        const callbacks = this.tradeListeners.get(key);
-        if (callbacks) {
-          callbacks.forEach(cb => cb(trade));
-        }
-      });
-
-      this.connection.on('ConnectionStatusChanged', (status: ConnectionStatus) => {
-        this.statusListeners.forEach(cb => cb(status));
-      });
-
-      this.connection.on('PaperAccountUpdated', (summary: PaperAccountSummary) => {
-        this.paperAccountListeners.forEach(cb => cb(summary));
-      });
-
-      this.connection.on('PaperNotification', (notification: PaperNotification) => {
-        this.paperNotificationListeners.forEach(cb => cb(notification));
-      });
-
-      this.connection.onreconnecting(() => {
+      this.ws.onopen = () => {
+        this.isConnecting = false;
         this.notifyStatus({
-          provider: 'SignalR Hub',
+          provider: 'Python FastAPI & Binance Feed',
+          status: 'LIVE',
+          latencyMs: 18,
+          lastUpdate: new Date().toISOString(),
+          activeStreams: 24,
+          mode: 'HYBRID_LIVE',
+          endpoint: '/ws/market'
+        });
+
+        // Re-subscribe all registered symbols
+        this.resubscribeAll();
+
+        // Heartbeat ping
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.pingInterval = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ action: 'ping' }));
+          }
+        }, 15000);
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          const type = msg.type;
+          const data = msg.data;
+
+          if (type === 'TickerUpdated' && data) {
+            this.tickerListeners.forEach(cb => cb(data));
+          } else if (type === 'PriceUpdated' && data) {
+            const key = this.normalizeSymbol(data.symbol);
+            const callbacks = this.symbolPriceListeners.get(key);
+            if (callbacks) {
+              callbacks.forEach(cb => cb(data));
+            }
+            this.tickerListeners.forEach(cb => cb(data));
+          } else if (type === 'OrderBookUpdated' && data) {
+            const key = this.normalizeSymbol(data.symbol);
+            const callbacks = this.orderBookListeners.get(key);
+            if (callbacks) {
+              callbacks.forEach(cb => cb(data));
+            }
+          } else if (type === 'TradeUpdated' && data) {
+            const key = this.normalizeSymbol(data.symbol);
+            const callbacks = this.tradeListeners.get(key);
+            if (callbacks) {
+              callbacks.forEach(cb => cb(data));
+            }
+          } else if (type === 'ConnectionStatusChanged' && data) {
+            this.statusListeners.forEach(cb => cb(data));
+          } else if (type === 'PaperAccountUpdated' && data) {
+            this.paperAccountListeners.forEach(cb => cb(data));
+          } else if (type === 'PaperNotification' && data) {
+            this.paperNotificationListeners.forEach(cb => cb(data));
+          }
+        } catch (err) {
+          console.warn('WS message parse error:', err);
+        }
+      };
+
+      this.ws.onclose = () => {
+        this.isConnecting = false;
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.notifyStatus({
+          provider: 'FastAPI Stream (Reconnecting)',
           status: 'RECONNECTING',
           latencyMs: 0,
           lastUpdate: new Date().toISOString(),
           activeStreams: 0,
           mode: 'RECONNECTING',
-          endpoint: '/hubs/market'
+          endpoint: '/ws/market'
         });
-      });
 
-      this.connection.onreconnected(() => {
-        this.notifyStatus({
-          provider: 'Binance & Multi-Asset Feed',
-          status: 'LIVE',
-          latencyMs: 38,
-          lastUpdate: new Date().toISOString(),
-          activeStreams: 16,
-          mode: 'HYBRID_LIVE',
-          endpoint: '/hubs/market'
-        });
-        // Re-subscribe to all active symbol groups
-        this.resubscribeAll();
-      });
+        // Auto-reconnect in 2s
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = setTimeout(() => {
+          this.connect();
+        }, 2000);
+      };
 
-      this.connection.onclose(() => {
-        this.notifyStatus({
-          provider: 'SignalR Hub',
-          status: 'DISCONNECTED',
-          latencyMs: 0,
-          lastUpdate: new Date().toISOString(),
-          activeStreams: 0,
-          mode: 'DISCONNECTED',
-          endpoint: '/hubs/market'
-        });
-      });
+      this.ws.onerror = () => {
+        this.isConnecting = false;
+      };
 
-      await this.connection.start();
-      this.isConnecting = false;
     } catch (err) {
       this.isConnecting = false;
-      console.warn('SignalR initial connection failed, falling back to REST poll / retry:', err);
+      console.warn('WebSocket connection attempt failed:', err);
     }
   }
 
@@ -173,8 +170,8 @@ class SignalRMarketClient {
       this.tradeListeners.get(key)!.add(onTrade);
     }
 
-    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
-      this.connection.invoke('SubscribeSymbol', symbol).catch(err => console.warn('SubscribeSymbol error:', err));
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ action: 'subscribe', symbol }));
     }
 
     return () => {
@@ -190,15 +187,15 @@ class SignalRMarketClient {
         this.symbolPriceListeners.delete(key);
         this.orderBookListeners.delete(key);
         this.tradeListeners.delete(key);
-        if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
-          this.connection.invoke('UnsubscribeSymbol', symbol).catch(err => console.warn('UnsubscribeSymbol error:', err));
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ action: 'unsubscribe', symbol }));
         }
       }
     };
   }
 
   private resubscribeAll() {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     const allSymbols = new Set([
       ...this.symbolPriceListeners.keys(),
       ...this.orderBookListeners.keys(),
@@ -206,7 +203,7 @@ class SignalRMarketClient {
     ]);
 
     allSymbols.forEach(sym => {
-      this.connection?.invoke('SubscribeSymbol', sym).catch(() => {});
+      this.ws?.send(JSON.stringify({ action: 'subscribe', symbol: sym }));
     });
   }
 
@@ -219,4 +216,4 @@ class SignalRMarketClient {
   }
 }
 
-export const signalRClient = new SignalRMarketClient();
+export const signalRClient = new RealtimeMarketClient();
