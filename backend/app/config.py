@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Paper Trading Defaults
     DEFAULT_VIRTUAL_CASH: float = 100000.00
 
+    # Feature flags
+    # When True, the internal simulated paper-trading bot will start automatically
+    ENABLE_PAPER_BOT: bool = False
+
     class Config:
         env_file = ".env"
         extra = "allow"

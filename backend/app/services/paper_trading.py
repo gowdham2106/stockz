@@ -19,7 +19,9 @@ logger = logging.getLogger("trading_terminal.paper_trading")
 class PaperTradingService:
     def __init__(self):
         self._lock = asyncio.Lock()
-        self._virtual_cash: float = 73630.00  # Cash available after initial demo positions
+        # Start with configured default virtual cash; keep initial demo positions optional
+        from app.config import settings
+        self._virtual_cash: float = float(settings.DEFAULT_VIRTUAL_CASH)
         self._positions: List[Dict] = []
         self._open_orders: List[Dict] = []
         self._history: List[Dict] = []

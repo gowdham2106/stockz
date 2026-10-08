@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_database
 from app.services.binance_ws import binance_ws_service
+from app.services.paper_bot import init_bot, paper_trading_bot
 from app.routers import (
     markets_router,
     papertrading_router,
@@ -36,11 +37,24 @@ async def lifespan(app: FastAPI):
     except Exception as ex:
         logger.error(f"Background worker startup error: {ex}")
 
+    # 3. Optionally start paper trading bot (safe, opt-in)
+    try:
+        if settings.ENABLE_PAPER_BOT:
+            bot = init_bot(binance_ws_service)
+            await bot.start()
+    except Exception as ex:
+        logger.error(f"Paper bot startup error: {ex}")
+
     yield
 
     # Teardown
     logger.info("Shutting down background workers...")
     await binance_ws_service.stop()
+    try:
+        if paper_trading_bot:
+            await paper_trading_bot.stop()
+    except Exception:
+        pass
     logger.info("Shutdown complete.")
 
 app = FastAPI(
