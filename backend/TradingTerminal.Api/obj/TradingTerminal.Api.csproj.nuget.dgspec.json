@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\GowdhamGokul\\Downloads\\project\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj": {}
+    "C:\\ARVINTH PERSONAL\\Artificial Intelligence\\ALgo Trading\\stockz\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\GowdhamGokul\\Downloads\\project\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj": {
+    "C:\\ARVINTH PERSONAL\\Artificial Intelligence\\ALgo Trading\\stockz\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\GowdhamGokul\\Downloads\\project\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj",
+        "projectUniqueName": "C:\\ARVINTH PERSONAL\\Artificial Intelligence\\ALgo Trading\\stockz\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj",
         "projectName": "TradingTerminal.Api",
-        "projectPath": "C:\\Users\\GowdhamGokul\\Downloads\\project\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj",
-        "packagesPath": "C:\\Users\\GowdhamGokul\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\GowdhamGokul\\Downloads\\project\\backend\\TradingTerminal.Api\\obj\\",
+        "projectPath": "C:\\ARVINTH PERSONAL\\Artificial Intelligence\\ALgo Trading\\stockz\\backend\\TradingTerminal.Api\\TradingTerminal.Api.csproj",
+        "packagesPath": "C:\\Users\\ArvinthSivakumar\\.nuget\\packages\\",
+        "outputPath": "C:\\ARVINTH PERSONAL\\Artificial Intelligence\\ALgo Trading\\stockz\\backend\\TradingTerminal.Api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\GowdhamGokul\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\ArvinthSivakumar\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"

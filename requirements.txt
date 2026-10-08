@@ -1,0 +1,5 @@
+# Python dependencies for local tooling/scripts
+# This project is primarily .NET + Node.js based, so add any Python helper packages here as needed.
+
+requests>=2.32.0
+python-dotenv>=1.0.1
